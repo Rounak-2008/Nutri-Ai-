@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- Form Submission with API Call ---
         form.addEventListener('submit', async (e) => {
-            e.preventDefault(); // Prevent default form submission
+            e.preventDefault();
             
             // Update progress to step 2 (Analysis)
             updateProgress(1);
@@ -197,38 +197,54 @@ document.addEventListener('DOMContentLoaded', () => {
             // Show loading overlay
             loadingOverlay.classList.remove('hidden');
             
-            // Simulate progress bar animation
-            progressBar.style.animation = 'none';
-            progressBar.offsetHeight; // Trigger reflow
-            progressBar.style.animation = 'progress 3s ease-in-out forwards';
+            // Reset and start progress bar animation
+            const progressBar = document.querySelector('.progress-bar');
+            progressBar.style.width = '0%';
             
             try {
-                // Import and call the analyzeFood function from core.js
+                // Import analyzeFood function
                 const { analyzeFood } = await import('./core.js');
                 
-                // Add a slight delay to show the loading animation
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // Start progress animation
+                progressBar.style.width = '40%';
+                await new Promise(resolve => setTimeout(resolve, 300));
                 
+                // Begin analysis
+                progressBar.style.width = '75%';
                 const result = await analyzeFood();
+                
+                // Analysis complete
+                progressBar.style.width = '90%';
                 
                 // Update progress to step 3 (Results)
                 updateProgress(2);
                 
                 // Display results
-                displayResults(result);
+                await displayResults(result);
                 
-                // Create notification
+                // Complete the progress bar
+                progressBar.style.width = '100%';
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                // Show success notification
                 showNotification('Analysis complete!', 'success');
                 
             } catch (error) {
                 console.error('Error analyzing food:', error);
+                progressBar.style.width = '100%';
                 showNotification(error.message || 'Failed to analyze food. Please try again.', 'error');
                 
                 // Reset progress on error
                 updateProgress(0);
             } finally {
-                // Hide loading overlay
+                // Wait for final animation before hiding overlay
+                await new Promise(resolve => setTimeout(resolve, 300));
                 loadingOverlay.classList.add('hidden');
+                
+                // Reset progress bar for next use
+                setTimeout(() => {
+                    progressBar.style.width = '0%';
+                }, 300);
             }
         });
 
