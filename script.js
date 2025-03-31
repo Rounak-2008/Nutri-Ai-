@@ -24,6 +24,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const header = document.querySelector('.header');
         const featureBadges = document.querySelectorAll('.feature-badge');
         
+        // Store the analyzed result and image for PDF generation
+        let lastAnalysisResult = null;
+        let lastUploadedImage = null;
+        
+        // Import PDF generator
+        import('./pdf-generator.js')
+            .then(module => {
+                window.generateNutritionPDF = module.generateNutritionPDF;
+            })
+            .catch(error => {
+                console.error('Error loading PDF generator:', error);
+            });
+        
         // Tips array
         const tips = [
             "For best results, take clear photos in good lighting.",
@@ -164,6 +177,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     imagePreview.classList.remove('hidden');
                     removeImageButton.classList.remove('hidden');
                     fileInputText.classList.add('hidden');
+                    
+                    // Store the image data URL for PDF generation
+                    lastUploadedImage = e.target.result;
                 }
 
                 reader.readAsDataURL(file);
@@ -178,6 +194,9 @@ document.addEventListener('DOMContentLoaded', () => {
             resetImagePreview();
             fileInput.value = '';
             updateProgress(0); // Reset to step 1
+            
+            // Clear the stored image
+            lastUploadedImage = null;
         });
 
         function resetImagePreview() {
@@ -194,11 +213,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // Update progress to step 2 (Analysis)
             updateProgress(1);
             
+            // Get loading elements
+            const loadingText = document.querySelector('.loading-text');
+            
             // Show loading overlay
             loadingOverlay.classList.remove('hidden');
             
             // Reset and start progress bar animation
-            const progressBar = document.querySelector('.progress-bar');
             progressBar.style.width = '0%';
             
             try {
@@ -206,15 +227,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 const { analyzeFood } = await import('./core.js');
                 
                 // Start progress animation
-                progressBar.style.width = '40%';
-                await new Promise(resolve => setTimeout(resolve, 300));
+                progressBar.style.width = '20%';
+                loadingText.textContent = 'Initializing food analysis...';
+                await new Promise(resolve => setTimeout(resolve, 500));
                 
-                // Begin analysis
+                // Begin image processing
+                progressBar.style.width = '40%';
+                loadingText.textContent = 'Processing image...';
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Begin food recognition
+                progressBar.style.width = '60%';
+                loadingText.textContent = 'Identifying food...';
+                await new Promise(resolve => setTimeout(resolve, 400));
+                
+                // Begin nutritional analysis
                 progressBar.style.width = '75%';
+                loadingText.textContent = 'Analyzing nutritional content...';
                 const result = await analyzeFood();
+                
+                // Store the result for PDF generation
+                lastAnalysisResult = result;
                 
                 // Analysis complete
                 progressBar.style.width = '90%';
+                loadingText.textContent = 'Preparing results...';
                 
                 // Update progress to step 3 (Results)
                 updateProgress(2);
@@ -224,7 +261,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Complete the progress bar
                 progressBar.style.width = '100%';
-                await new Promise(resolve => setTimeout(resolve, 200));
+                loadingText.textContent = 'Analysis complete!';
+                await new Promise(resolve => setTimeout(resolve, 300));
                 
                 // Show success notification
                 showNotification('Analysis complete!', 'success');
@@ -232,24 +270,26 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 console.error('Error analyzing food:', error);
                 progressBar.style.width = '100%';
+                loadingText.textContent = 'Error analyzing food';
                 showNotification(error.message || 'Failed to analyze food. Please try again.', 'error');
                 
                 // Reset progress on error
                 updateProgress(0);
             } finally {
                 // Wait for final animation before hiding overlay
-                await new Promise(resolve => setTimeout(resolve, 300));
+                await new Promise(resolve => setTimeout(resolve, 500));
                 loadingOverlay.classList.add('hidden');
                 
                 // Reset progress bar for next use
                 setTimeout(() => {
                     progressBar.style.width = '0%';
+                    loadingText.textContent = 'Analyzing your food...';
                 }, 300);
             }
         });
 
         // Function to display results
-        function displayResults(result) {
+        async function displayResults(result) {
             // Remove any existing results section
             const existingResults = document.querySelector('.results-section');
             if (existingResults) {
@@ -334,7 +374,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (saveButton) {
                     saveButton.addEventListener('click', () => {
-                        showNotification('Results saved successfully!', 'success');
+                        // Show loading overlay for PDF generation
+                        loadingOverlay.classList.remove('hidden');
+                        const loadingText = document.querySelector('.loading-text');
+                        loadingText.textContent = 'Generating PDF report...';
+                        
+                        // Reset and animate progress bar
+                        progressBar.style.width = '0%';
+                        
+                        // Create animation sequence for PDF generation
+                        (async function animatePdfGeneration() {
+                            try {
+                                // Start progress animation
+                                progressBar.style.width = '30%';
+                                loadingText.textContent = 'Creating document...';
+                                await new Promise(resolve => setTimeout(resolve, 300));
+                                
+                                // Charts generation step
+                                progressBar.style.width = '60%';
+                                loadingText.textContent = 'Generating charts...';
+                                await new Promise(resolve => setTimeout(resolve, 400));
+                                
+                                // Finalizing step
+                                progressBar.style.width = '85%';
+                                loadingText.textContent = 'Finalizing report...';
+                                
+                                // Call PDF generation function if available
+                                if (window.generateNutritionPDF && lastAnalysisResult) {
+                                    // Call with slight delay to allow progress animation
+                                    setTimeout(() => {
+                                        window.generateNutritionPDF(lastAnalysisResult, lastUploadedImage);
+                                        
+                                        // Complete progress bar
+                                        progressBar.style.width = '100%';
+                                        loadingText.textContent = 'PDF generated successfully!';
+                                        
+                                        // Hide the loading overlay after a short delay
+                                        setTimeout(() => {
+                                            loadingOverlay.classList.add('hidden');
+                                            
+                                            // Reset progress bar for next use
+                                            setTimeout(() => {
+                                                progressBar.style.width = '0%';
+                                                loadingText.textContent = 'Analyzing your food...';
+                                            }, 300);
+                                            
+                                            // Show success notification
+                                            showNotification('PDF report generated and downloaded!', 'success');
+                                        }, 800);
+                                    }, 300);
+                                } else {
+                                    throw new Error('PDF generator not available');
+                                }
+                            } catch (error) {
+                                console.error('Error generating PDF:', error);
+                                loadingOverlay.classList.add('hidden');
+                                showNotification('Could not generate PDF report. Please try again.', 'error');
+                                
+                                // Reset progress bar for next use
+                                setTimeout(() => {
+                                    progressBar.style.width = '0%';
+                                    loadingText.textContent = 'Analyzing your food...';
+                                }, 300);
+                            }
+                        })();
                     });
                 }
                 
