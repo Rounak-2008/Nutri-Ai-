@@ -1,7 +1,7 @@
 // core.js - NutriAI Estimator Core Functionality
 
 // API Configuration (Replace with your actual API key and endpoint)
-const API_KEY = 'AIzaSyDQwPf7MJ3l21CgkerztIRAImYFeyPuoJc'; // Replace with your actual API key.
+const API_KEY = ''; // Replace with your actual API key.
 const API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 // Helper function to convert an image file to base64.
